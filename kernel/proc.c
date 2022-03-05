@@ -655,3 +655,12 @@ procdump(void)
     printf("\n");
   }
 }
+
+int proc_used() {
+  int tot=0;
+  struct proc *p;
+  for(p=proc;p<&proc[NPROC];p++){
+    if(p->state!=UNUSED) tot+=1;
+  }
+  return tot;
+}

@@ -104,3 +104,20 @@ sys_trace(void){
   myproc()->mask|=mask;  
   return 0;
 }
+
+extern int free_memory(void);
+extern int proc_used(void);
+#include "sysinfo.h"
+uint64
+sys_sysinfo(){
+  uint64 ip;
+  if(argaddr(0, &ip) < 0)
+    return -1;
+  uint64 freemem = free_memory() * (uint64) 4096;
+  uint64 nproc = proc_used();
+  struct sysinfo r = {freemem, nproc};
+  struct proc *p = myproc();
+  if(copyout(p->pagetable, ip, (char *)&r, sizeof(r)) < 0)
+    return -1;
+  return 0;
+}
