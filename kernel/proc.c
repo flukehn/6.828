@@ -675,3 +675,31 @@ procdump(void)
     printf("\n");
   }
 }
+
+#ifdef LAB_PGTBL
+int pgaccess(uint64 base, int len, uint64 mask) {
+  if(len>32) return -1;
+  struct proc *p=myproc();
+  uint64 ret=0;
+  for(int i=0;i<len;++i) {
+    pte_t *e=walka(p->pagetable, base+i*PGSIZE);
+    if(e == 0) {
+      return -1;
+    }
+    if(*e & PTE_A) {
+      ret |= 1LL << i;
+      *e ^= PTE_A;
+    }
+  }
+  if(copyout(p->pagetable, mask, (char *)(&ret), 4) < 0) {
+    return -1;
+  }
+  /*
+  uint64 pa = walkaddr(p->pagetable, mask);
+  if(pa == 0) {
+    return -1;
+  }
+  *(uint64*)pa = ret;*/
+  return 0;
+}
+#endif
