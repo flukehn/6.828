@@ -33,6 +33,7 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+//extern void* memcpy(void *, void *, uint);
 void
 usertrap(void)
 {
@@ -79,6 +80,22 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
+
+  if(which_dev == 2 && p->sig_n > 0) {
+    p->sig_left -= 1;
+    if (p->sig_left == 0) {
+      //printf("%d %d %d %p\n", p->pid, p->sig_n, p->sig_left, p->sig_fn);
+      p->sig_left = p->sig_n;
+      if(p->sig_in == 0) {
+        p->sig_trapframe = *p->trapframe;
+        //memcpy(p->sig_trapframe, p->trapframe, sizeof(struct trapframe));
+        //      printf("<alarm>: p->trapframe->epc=%p\n", p->trapframe->epc);
+        //      p->sig_epc = p->trapframe->epc;
+        p->trapframe->epc = p->sig_fn;
+        p->sig_in=1;
+      }
+    }
+  }
 
   usertrapret();
 }

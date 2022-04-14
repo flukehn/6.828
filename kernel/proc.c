@@ -127,6 +127,9 @@ found:
     return 0;
   }
 
+  p->sig_trapframe = *p->trapframe;// + sizeof(struct trapframe);
+  //printf("%p %p %d\n", p->trapframe, p->sig_trapframe, sizeof(struct trapframe));
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -140,6 +143,9 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  p->sig_n = 0;
+  p->sig_left = 0;
 
   return p;
 }
@@ -288,9 +294,14 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  np->sig_n = p->sig_n;
+  np->sig_left = p->sig_left;
+  np->sig_fn = p->sig_fn;
+  np->sig_in = 0;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
+  (np->sig_trapframe) = (p->sig_trapframe);
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
