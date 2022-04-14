@@ -1,4 +1,5 @@
 // which hart (core) is this?
+__attribute__((always_inline))
 static inline uint64
 r_mhartid()
 {
@@ -15,6 +16,7 @@ r_mhartid()
 #define MSTATUS_MPP_U (0L << 11)
 #define MSTATUS_MIE (1L << 3)    // machine-mode interrupt enable.
 
+__attribute__((always_inline))
 static inline uint64
 r_mstatus()
 {
@@ -23,6 +25,7 @@ r_mstatus()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_mstatus(uint64 x)
 {
@@ -32,6 +35,7 @@ w_mstatus(uint64 x)
 // machine exception program counter, holds the
 // instruction address to which a return from
 // exception will go.
+__attribute__((always_inline))
 static inline void 
 w_mepc(uint64 x)
 {
@@ -46,6 +50,7 @@ w_mepc(uint64 x)
 #define SSTATUS_SIE (1L << 1)  // Supervisor Interrupt Enable
 #define SSTATUS_UIE (1L << 0)  // User Interrupt Enable
 
+__attribute__((always_inline))
 static inline uint64
 r_sstatus()
 {
@@ -54,6 +59,7 @@ r_sstatus()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_sstatus(uint64 x)
 {
@@ -61,6 +67,7 @@ w_sstatus(uint64 x)
 }
 
 // Supervisor Interrupt Pending
+__attribute__((always_inline))
 static inline uint64
 r_sip()
 {
@@ -69,6 +76,7 @@ r_sip()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_sip(uint64 x)
 {
@@ -79,6 +87,7 @@ w_sip(uint64 x)
 #define SIE_SEIE (1L << 9) // external
 #define SIE_STIE (1L << 5) // timer
 #define SIE_SSIE (1L << 1) // software
+__attribute__((always_inline))
 static inline uint64
 r_sie()
 {
@@ -87,6 +96,7 @@ r_sie()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_sie(uint64 x)
 {
@@ -97,6 +107,7 @@ w_sie(uint64 x)
 #define MIE_MEIE (1L << 11) // external
 #define MIE_MTIE (1L << 7)  // timer
 #define MIE_MSIE (1L << 3)  // software
+__attribute__((always_inline))
 static inline uint64
 r_mie()
 {
@@ -105,6 +116,7 @@ r_mie()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_mie(uint64 x)
 {
@@ -114,12 +126,14 @@ w_mie(uint64 x)
 // supervisor exception program counter, holds the
 // instruction address to which a return from
 // exception will go.
+__attribute__((always_inline))
 static inline void 
 w_sepc(uint64 x)
 {
   asm volatile("csrw sepc, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline uint64
 r_sepc()
 {
@@ -129,6 +143,7 @@ r_sepc()
 }
 
 // Machine Exception Delegation
+__attribute__((always_inline))
 static inline uint64
 r_medeleg()
 {
@@ -137,6 +152,7 @@ r_medeleg()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_medeleg(uint64 x)
 {
@@ -144,6 +160,7 @@ w_medeleg(uint64 x)
 }
 
 // Machine Interrupt Delegation
+__attribute__((always_inline))
 static inline uint64
 r_mideleg()
 {
@@ -152,6 +169,7 @@ r_mideleg()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_mideleg(uint64 x)
 {
@@ -160,12 +178,14 @@ w_mideleg(uint64 x)
 
 // Supervisor Trap-Vector Base Address
 // low two bits are mode.
+__attribute__((always_inline))
 static inline void 
 w_stvec(uint64 x)
 {
   asm volatile("csrw stvec, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline uint64
 r_stvec()
 {
@@ -175,18 +195,21 @@ r_stvec()
 }
 
 // Machine-mode interrupt vector
+__attribute__((always_inline))
 static inline void 
 w_mtvec(uint64 x)
 {
   asm volatile("csrw mtvec, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline void
 w_pmpcfg0(uint64 x)
 {
   asm volatile("csrw pmpcfg0, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline void
 w_pmpaddr0(uint64 x)
 {
@@ -200,12 +223,14 @@ w_pmpaddr0(uint64 x)
 
 // supervisor address translation and protection;
 // holds the address of the page table.
+__attribute__((always_inline))
 static inline void 
 w_satp(uint64 x)
 {
   asm volatile("csrw satp, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline uint64
 r_satp()
 {
@@ -215,12 +240,14 @@ r_satp()
 }
 
 // Supervisor Scratch register, for early trap handler in trampoline.S.
+__attribute__((always_inline))
 static inline void 
 w_sscratch(uint64 x)
 {
   asm volatile("csrw sscratch, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline void 
 w_mscratch(uint64 x)
 {
@@ -228,6 +255,7 @@ w_mscratch(uint64 x)
 }
 
 // Supervisor Trap Cause
+__attribute__((always_inline))
 static inline uint64
 r_scause()
 {
@@ -237,6 +265,7 @@ r_scause()
 }
 
 // Supervisor Trap Value
+__attribute__((always_inline))
 static inline uint64
 r_stval()
 {
@@ -246,6 +275,7 @@ r_stval()
 }
 
 // Machine-mode Counter-Enable
+__attribute__((always_inline))
 static inline void 
 w_mcounteren(uint64 x)
 {
@@ -253,6 +283,7 @@ w_mcounteren(uint64 x)
 }
 
 static inline uint64
+__attribute__((always_inline))
 r_mcounteren()
 {
   uint64 x;
@@ -262,6 +293,7 @@ r_mcounteren()
 
 // machine-mode cycle counter
 static inline uint64
+__attribute__((always_inline))
 r_time()
 {
   uint64 x;
@@ -270,6 +302,7 @@ r_time()
 }
 
 // enable device interrupts
+__attribute__((always_inline))
 static inline void
 intr_on()
 {
@@ -277,6 +310,7 @@ intr_on()
 }
 
 // disable device interrupts
+__attribute__((always_inline))
 static inline void
 intr_off()
 {
@@ -284,6 +318,7 @@ intr_off()
 }
 
 // are device interrupts enabled?
+__attribute__((always_inline))
 static inline int
 intr_get()
 {
@@ -291,6 +326,7 @@ intr_get()
   return (x & SSTATUS_SIE) != 0;
 }
 
+__attribute__((always_inline))
 static inline uint64
 r_sp()
 {
@@ -301,6 +337,7 @@ r_sp()
 
 // read and write tp, the thread pointer, which holds
 // this core's hartid (core number), the index into cpus[].
+__attribute__((always_inline))
 static inline uint64
 r_tp()
 {
@@ -309,12 +346,14 @@ r_tp()
   return x;
 }
 
+__attribute__((always_inline))
 static inline void 
 w_tp(uint64 x)
 {
   asm volatile("mv tp, %0" : : "r" (x));
 }
 
+__attribute__((always_inline))
 static inline uint64
 r_ra()
 {
@@ -323,7 +362,17 @@ r_ra()
   return x;
 }
 
+__attribute__((always_inline))
+static inline uint64
+r_fp()
+{
+  uint64 x;
+  asm volatile("mv %0, s0" : "=r" (x) );
+  return x;
+}
+
 // flush the TLB.
+__attribute__((always_inline))
 static inline void
 sfence_vma()
 {
