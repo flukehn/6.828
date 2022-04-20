@@ -18,15 +18,24 @@ struct run {
   struct run *next;
 };
 
+struct page_info {
+  int _count;
+};
+
 struct {
   struct spinlock lock;
   struct run *freelist;
+  struct page_info info[PHYSTOP / PGSIZE];
 } kmem;
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  acquire(&kmem.lock);
+  for (int i = 0; i < PHYSTOP / PGSIZE; ++i)
+    kmem.info[i]._count = 1;
+  release(&kmem.lock);
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -57,8 +66,13 @@ kfree(void *pa)
   r = (struct run*)pa;
 
   acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+  if (kmem.info[(uint64)pa/PGSIZE]._count < 1) {
+    panic("kfree : reference count < 1\n");
+  }
+  if ((--kmem.info[(uint64)pa / PGSIZE]._count) == 0) {
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  }
   release(&kmem.lock);
 }
 
@@ -72,11 +86,28 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
+    kmem.info[(uint64)r/PGSIZE]._count = 1;
+  }
   release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+void
+kpage_count_add(void *pa, int v) {
+  acquire(&kmem.lock);
+  kmem.info[(uint64)pa/PGSIZE]._count+=v;
+  release(&kmem.lock);
+}
+
+int
+kpage_cow(void *pa) {
+  acquire(&kmem.lock);
+  int c=kmem.info[(uint64)pa/PGSIZE]._count;
+  release(&kmem.lock);
+  return c;
 }

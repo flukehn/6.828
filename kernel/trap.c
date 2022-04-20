@@ -65,6 +65,51 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause() == 15){
+    // page fault
+    uint64 va = r_stval();
+    va=PGROUNDDOWN(va);
+    uint64 pa;
+    uint flags;
+    pte_t *pte;
+    char *mem;
+    int c;
+    if(va>=p->sz)
+      goto gg;
+    if((pte=walk(p->pagetable, va, 0)) == 0)
+      goto gg;
+    if((*pte & PTE_C) == 0)
+      goto gg;
+    pa=PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte) & (~PTE_C);
+    if(*pte & PTE_W)
+      goto gg;
+    c=kpage_cow((void *)pa);
+    if(c<=0){
+      goto gg;
+    }else if(c==1){
+      *pte |= PTE_W;
+      *pte &= ~PTE_C;
+    }else{
+      if((mem = kalloc()) == 0)
+        goto gg;
+      memmove(mem, (char*)pa, PGSIZE);
+      uvmunmap(p->pagetable, va, 1, 1);
+      mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags | PTE_W);
+      //kpage_count_add((void *)pa,-1);
+      //kfree((void *)pa);
+    }
+    goto succ;
+gg:
+    printf("handle failed\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    p->killed=-1;
+succ:;
+    printf("handle success\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    //p->killed=-1;
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
