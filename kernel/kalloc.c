@@ -8,7 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
-
+#include "proc.h"
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -38,7 +38,6 @@ kinit()
   release(&kmem.lock);
   freerange(end, (void*)PHYSTOP);
 }
-
 void
 freerange(void *pa_start, void *pa_end)
 {
@@ -61,15 +60,14 @@ kfree(void *pa)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
-  memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
-
   acquire(&kmem.lock);
   if (kmem.info[(uint64)pa/PGSIZE]._count < 1) {
     panic("kfree : reference count < 1\n");
   }
   if ((--kmem.info[(uint64)pa / PGSIZE]._count) == 0) {
+    memset(pa, 1, PGSIZE);
     r->next = kmem.freelist;
     kmem.freelist = r;
   }
@@ -89,6 +87,7 @@ kalloc(void)
   if(r) {
     kmem.freelist = r->next;
     kmem.info[(uint64)r/PGSIZE]._count = 1;
+    //printf("kalloc %p\n", r);
   }
   release(&kmem.lock);
 
@@ -100,6 +99,7 @@ kalloc(void)
 void
 kpage_count_add(void *pa, int v) {
   acquire(&kmem.lock);
+  //printf("cow page %p: from %d, add  %d\n", pa, kmem.info[(uint64)pa/PGSIZE]._count, v);
   kmem.info[(uint64)pa/PGSIZE]._count+=v;
   release(&kmem.lock);
 }

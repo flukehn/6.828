@@ -94,8 +94,13 @@ usertrap(void)
       if((mem = kalloc()) == 0)
         goto gg;
       memmove(mem, (char*)pa, PGSIZE);
+      //kpage_count_add((void *)pa, 10);
+      //printf("cow on mem(%p) is %d\n", mem, kpage_cow((void *)mem));
+      //printf("cow on pa(%p) is %d\n", pa, kpage_cow((void *)pa));
       uvmunmap(p->pagetable, va, 1, 1);
       mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags | PTE_W);
+      //printf("cow on mem(%p) is %d\n", mem, kpage_cow((void *)mem));
+      //printf("cow on pa(%p) is %d\n", pa, kpage_cow((void *)pa));
       //kpage_count_add((void *)pa,-1);
       //kfree((void *)pa);
     }
@@ -105,10 +110,10 @@ gg:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed=-1;
-succ:;
+succ:;/*
     printf("handle success\n");
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());*/
     //p->killed=-1;
   } else if((which_dev = devintr()) != 0){
     // ok

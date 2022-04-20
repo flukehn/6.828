@@ -304,7 +304,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uint64 pa, i;
   uint flags;
   char *mem;
-
+  //printf("fork page:\n");
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
@@ -314,19 +314,27 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     *pte &= ~PTE_W;
     *pte |= PTE_C;
     flags = PTE_FLAGS(*pte);
+    
+    //if((mem=kalloc())==0) goto err;
+    //memmove(mem, (char*)pa, PGSIZE);
     mem = (char *)pa;
+    kpage_count_add((void *)mem, 1);
     //    if((mem = kalloc()) == 0)
     //      goto err;
     //    memmove(mem, (char*)pa, PGSIZE);
     if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      //      kfree(mem);
+      kfree(mem);
       goto err;
     }
-    kpage_count_add((void *)mem, 1);
+    //printf("mem cow1: %d\n", kpage_cow((void *)mem));
+    
+    //printf("mem cow2: %d\n", kpage_cow((void *)mem));
   }
+  //printf("fork end:\n");
   return 0;
 
  err:
+  //printf("mappage err\n");
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
