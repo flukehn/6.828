@@ -92,6 +92,7 @@ e1000_init(uint32 *xregs)
   regs[E1000_IMS] = (1 << 7); // RXDW -- Receiver Descriptor Write Back
 }
 
+//extern int holding(struct spinlock*);
 int
 e1000_transmit(struct mbuf *m)
 {
@@ -102,7 +103,26 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
-  
+  //int hd=holding(&e1000_lock);
+  //if(!hd)
+  acquire(&e1000_lock);
+  uint32 p=regs[E1000_TDT];
+  if ((tx_ring[p].status & E1000_TXD_STAT_DD) == 0){
+    //if(!hd)
+    release(&e1000_lock);
+    printf("GGGG\n");
+    return -1;
+  }
+  if(tx_mbufs[p])
+    mbuffree(tx_mbufs[p]);
+  tx_mbufs[p]=m;
+  tx_ring[p].addr=(uint64)m->head;
+  tx_ring[p].length=m->len;
+  tx_ring[p].cmd=E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+  regs[E1000_TDT]=(p+1)%TX_RING_SIZE;
+  //printf("okkkk\n");
+  //if(!hd)
+  release(&e1000_lock);
   return 0;
 }
 
@@ -115,6 +135,50 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
+  
+  while(1) {
+    acquire(&e1000_lock);
+    uint32 p=(regs[E1000_RDT]+1)%RX_RING_SIZE;
+    if ((rx_ring[p].status & E1000_RXD_STAT_DD) == 0) {
+      release(&e1000_lock);
+      //printf("GGGG1 \n");
+      return;
+    }
+    struct mbuf *m=rx_mbufs[p];
+    /*if(!m) {
+      release(&e1000_lock);
+      printf("GGGG 2\n");
+      return;
+    }*/
+    //m->head=(char *)rx_ring[p].addr;
+    m->len=rx_ring[p].length;
+    //
+    //
+    rx_ring[p].status=0;
+    regs[E1000_RDT]=p;
+    //release(&e1000_lock);
+    
+    
+    //acquire(&e1000_lock);
+
+    struct mbuf *im=mbufalloc(0x0);
+    if(!im) {
+      release(&e1000_lock);
+      printf("GGGG 3\n");
+      return;
+    }
+    rx_ring[p].addr=(uint64)im->head;
+    rx_mbufs[p]=im;
+    //im->len=rx_ring[p].length;
+    //rx_mbufs[p]=im;
+    
+    //printf("kkkko\n");
+    release(&e1000_lock);
+    net_rx(m);
+    
+    //mbuffree(m);
+    //mbuffree(im);
+  }
 }
 
 void
