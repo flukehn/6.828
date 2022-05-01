@@ -712,3 +712,49 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+int symlink(char *target, char *path)
+{
+  char name[MAXPATH];
+  struct inode *dp, *ip;
+  begin_op();
+  if((dp=nameiparent(path, name)) == 0) {
+    end_op();
+    return -1;
+  }
+  ilock(dp);
+  if((ip = dirlookup(dp, name, 0)) != 0){
+    iunlockput(dp);
+    end_op();
+    return -1;
+  }
+  if((ip = ialloc(dp->dev, T_SYMLINK)) == 0)
+    panic("create: ialloc");
+
+  uint len = strlen(target);//addr;
+  //char *a;
+  //struct buf *bp;
+  
+  ilock(ip);
+  ip->major = 0;
+  ip->minor = 0;
+  ip->nlink = 1;
+  ip->size = len+1;
+  iupdate(ip);
+
+  writei(ip, 0, (uint64)target, 0, len+1);
+  /*ip->addrs[0]=addr=balloc(ip->dev);
+  if(!addr)
+    panic("create ip->addrs[0]");
+  bp=bread(ip->dev, addr);
+  a = (char*)bp->data;
+  memmove(a,target,MAXPATH);
+  log_write(bp);
+  brelse(bp);*/
+  if(dirlink(dp, name, ip->inum)<0)
+    panic("create: dirlink");
+  iunlockput(ip);
+  iunlockput(dp);
+  end_op();
+  return 0;
+}
