@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+//#include "buf.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -482,5 +483,94 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_mmap(void)
+{
+  uint64 addr; // 0
+  uint64 length;
+  int prot; /* 
+    readable, writeable, and/or executable;
+    PROT_READ or PROT_WRITE or both 
+  */
+  int flags; /*
+   either MAP_SHARED, 
+   meaning that modifications to the mapped memory should be written back to the file, 
+   or MAP_PRIVATE, 
+   meaning that they should not
+  */
+  int fd;
+  uint64 offset; // 0
+
+  struct file *f;
+  if(argaddr(0, &addr) || argaddr(1, &length) || argint(2, &prot) || argint(3, &flags)
+    || argfd(4, &fd, &f) || argaddr(5, &offset)
+  )
+    return -1;
+  if(addr || offset)
+    panic("not implement yet");
+  struct proc *p=myproc();
+  struct mmap *v;
+  for(v=p->vma;v<p->vma+NMMAP;++v){
+    if(v->used==0) break;
+  }
+  if(v>=p->vma+NMMAP)
+    return -1;
+  uint64 len=length+(length%PGSIZE?PGSIZE-length%PGSIZE:0);
+  if(f->ip->size < length)
+    return -1;
+  if(p->sz+len+PGSIZE>p->hvm)
+    return -1;
+  
+  p->hvm-=len;
+  
+  v->f=f;
+  v->addr=p->hvm;
+  v->len=length;
+  v->offset=0;
+  v->prot=prot;
+  v->flags=flags;
+  v->used=1;
+  printf("v->addr = %p\n",v->addr);
+  return v->addr;
+}
+
+
+extern int write_back(struct proc *p, struct mmap *v, uint64 src, uint off, uint n);
+uint64
+sys_munmap(void)
+{
+  uint64 addr;
+  uint64 length;
+  if(argaddr(0,&addr)||argaddr(1,&length))
+    return -1;
+  if(length==0)
+    return -1;
+  struct proc *p=myproc();
+  struct mmap *v;
+  for(v=p->vma;v<p->vma+NMMAP;++v){
+    if(!v->used) continue;
+    if(length > v->len) continue;
+    if(addr==v->addr || addr+length == v->addr+v->len) break;
+  }
+  if(v>=p->vma+NMMAP)
+    return -1;
+  
+  if(v->flags == MAP_SHARED){
+    // write back
+    write_back(p, v, addr, v->offset+addr-v->addr, length);
+  }
+
+  if(addr==v->addr){
+    v->addr+=length;
+    v->offset+=length;
+  }
+  v->len-=length;
+  if(v->len==0) {
+    memset(v,0,sizeof(struct mmap));
+  }
+  
   return 0;
 }

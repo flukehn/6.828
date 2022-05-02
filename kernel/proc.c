@@ -141,6 +141,9 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  memset(p->vma, 0, sizeof p->vma);
+  p->hvm = KSTACK(NPROC)-PGSIZE;
+
   return p;
 }
 
@@ -304,6 +307,9 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  memmove(np->vma, p->vma, sizeof(struct mmap));
+  np->hvm=p->hvm;
 
   release(&np->lock);
 

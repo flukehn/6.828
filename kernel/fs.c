@@ -516,6 +516,50 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   return tot;
 }
 
+extern pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
+int
+write_back_block(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
+{
+  uint64 n, va0, pa0;
+
+  while(len > 0){
+    va0 = PGROUNDDOWN(srcva);
+    pte_t *pte=walk(pagetable, va0, 0);
+    if(pte == 0 || (*pte & PTE_D) == 0)
+      continue;
+    pa0 = PTE2PA(*pte);
+    n = PGSIZE - (srcva - va0);
+    if(n > len)
+      n = len;
+    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+
+    len -= n;
+    dst += n;
+    srcva = va0 + PGSIZE;
+  }
+  return 0;
+}
+
+int
+write_back(struct proc *p, struct mmap *v, uint64 src, uint off, uint n)
+{
+  //uint off=v->offset+addr-v->addr;
+  uint tot,m;
+  //uint64 src=addr;
+  struct inode *ip=v->f->ip;
+  struct buf *bp;
+  for(tot=0; tot<n; tot+=m, off+=m, src+=m){
+    bp = bread(ip->dev, bmap(ip, off/BSIZE));
+    m = min(n - tot, BSIZE - off%BSIZE);
+    if(write_back_block(p->pagetable, (char *)bp->data + (off % BSIZE), src, m) == -1) {
+      brelse(bp);
+      break;
+    }
+    log_write(bp);
+    brelse(bp);
+  }
+  return tot;
+}
 // Directories
 
 int
