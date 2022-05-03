@@ -291,8 +291,10 @@ ilock(struct inode *ip)
   struct buf *bp;
   struct dinode *dip;
 
-  if(ip == 0 || ip->ref < 1)
-    panic("ilock");
+  if(ip == 0)
+    panic("ilock ip == 0");
+  if(ip->ref < 1)
+    panic("ilock ip->ref < 1");
 
   acquiresleep(&ip->lock);
 
@@ -516,7 +518,6 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   return tot;
 }
 
-extern pte_t *walk(pagetable_t pagetable, uint64 va, int alloc);
 int
 write_back_block(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
@@ -525,14 +526,13 @@ write_back_block(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pte_t *pte=walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte & PTE_D) == 0)
-      continue;
-    pa0 = PTE2PA(*pte);
     n = PGSIZE - (srcva - va0);
     if(n > len)
       n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
+    if(pte && (*pte & PTE_D)) {
+      pa0 = PTE2PA(*pte);
+      memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+    }
     len -= n;
     dst += n;
     srcva = va0 + PGSIZE;
@@ -541,13 +541,18 @@ write_back_block(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 }
 
 int
-write_back(struct proc *p, struct mmap *v, uint64 src, uint off, uint n)
+write_back(struct proc *p, struct inode *ip, uint64 src, uint off, uint n)
 {
   //uint off=v->offset+addr-v->addr;
   uint tot,m;
   //uint64 src=addr;
-  struct inode *ip=v->f->ip;
   struct buf *bp;
+
+  if(off > ip->size || off + n < off)
+    return -1;
+  if(off + n > MAXFILE*BSIZE)
+    return -1;
+  //printf("write_back n=%p\n",n);
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
@@ -558,6 +563,9 @@ write_back(struct proc *p, struct mmap *v, uint64 src, uint off, uint n)
     log_write(bp);
     brelse(bp);
   }
+  if(off > ip->size)
+    ip->size = off;
+  iupdate(ip);
   return tot;
 }
 // Directories

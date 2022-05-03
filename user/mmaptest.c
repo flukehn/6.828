@@ -222,11 +222,12 @@ mmap_test(void)
   if(write(fd2, "67890", 5) != 5)
     err("write mmap2");
   char *p2 = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd2, 0);
+  //printf("%d %d %p %p\n", fd1,fd2,p1,p2);
   if(p2 == MAP_FAILED)
     err("mmap mmap2");
   close(fd2);
   unlink("mmap2");
-
+  //printf("%s\n%s\n",p1,p2);
   if(memcmp(p1, "12345", 5) != 0)
     err("mmap1 mismatch");
   if(memcmp(p2, "67890", 5) != 0)

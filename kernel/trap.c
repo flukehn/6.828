@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,8 +71,45 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 0xf) {
+  } else if(r_scause() == 0xf || r_scause() == 0xd) {
+    uint64 addr=r_stval();
+    struct mmap *v;
+    for(v=p->vma;v<p->vma+NMMAP;++v){
+      if(!v->used)continue;
+      if(addr >= v->addr && addr < v->addr+v->len) break;
+    }
+    uint64 va=PGROUNDDOWN(addr);
+    //uint64 pa;
+    uint flags = ((v->prot & PROT_READ) ? PTE_R : 0) | ((v->prot & PROT_WRITE) ? PTE_W : 0);
+    uint len;
+    pte_t *pte;
+    char *mem;
+    if(v>=p->vma+NMMAP)
+      goto handle_failed;
     
+    if((pte=walk(p->pagetable, va, 0)) && *pte)
+      goto handle_failed;
+    if((mem=kalloc())==0)
+      goto handle_failed;
+    memset(mem,0,PGSIZE);
+    len=v->addr+v->len-va;
+    if(len>PGSIZE)len=PGSIZE;
+    //begin_op();
+    //acquiresleep(&v->ip->lock);
+    ilock(v->ip);
+    readi(v->ip,0,(uint64)mem,v->offset+va-v->addr, len);
+    iunlock(v->ip);
+    //releasesleep(&v->ip->lock);
+    //end_op();
+    mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags | PTE_V | PTE_U);
+    goto handl_succeed;
+handle_failed:
+    printf("handle failed\n");
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    p->killed = 1;
+handl_succeed:;
+    //printf("handle succeed\n");
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

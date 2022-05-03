@@ -142,7 +142,7 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   memset(p->vma, 0, sizeof p->vma);
-  p->hvm = KSTACK(NPROC)-PGSIZE;
+  p->hvm = KSTACK(NPROC)-PGSIZE*10;
 
   return p;
 }
@@ -167,6 +167,16 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  
+  for(struct mmap *v=p->vma;v<p->vma+NMMAP;++v){
+    if(v->used){
+      //begin_op();
+      iput(v->ip);
+      //end_op();
+    }
+  }
+  
+  memset(p->vma,0,sizeof p->vma);
 }
 
 // Create a user page table for a given process,
@@ -309,6 +319,11 @@ fork(void)
   pid = np->pid;
 
   memmove(np->vma, p->vma, sizeof(struct mmap));
+  for(struct mmap *v=p->vma;v<p->vma+NMMAP;++v){
+    if(v->used){
+      idup(v->ip);
+    }
+  }
   np->hvm=p->hvm;
 
   release(&np->lock);

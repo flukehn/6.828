@@ -275,7 +275,8 @@ freewalk(pagetable_t pagetable)
       freewalk((pagetable_t)child);
       pagetable[i] = 0;
     } else if(pte & PTE_V){
-      panic("freewalk: leaf");
+      kfree((void *)PTE2PA(pte)); // need fix mmap
+      //panic("freewalk: leaf");
     }
   }
   kfree((void*)pagetable);

@@ -518,27 +518,35 @@ sys_mmap(void)
   }
   if(v>=p->vma+NMMAP)
     return -1;
-  uint64 len=length+(length%PGSIZE?PGSIZE-length%PGSIZE:0);
-  if(f->ip->size < length)
+  //if(!f->readable && (prot & PROT_READ))
+  //  return -1;
+  if(!f->writable && (prot & PROT_WRITE) && flags == MAP_SHARED)
     return -1;
+
+  uint64 len=length;
+  if(len%PGSIZE) len+=PGSIZE-length%PGSIZE;
+  /*if(f->ip->size < length)
+    return -1;*/
   if(p->sz+len+PGSIZE>p->hvm)
     return -1;
+  //printf("%p\n",len);
+  idup(f->ip);
   
   p->hvm-=len;
   
-  v->f=f;
+  v->ip=f->ip;
   v->addr=p->hvm;
   v->len=length;
   v->offset=0;
   v->prot=prot;
   v->flags=flags;
   v->used=1;
-  printf("v->addr = %p\n",v->addr);
+  //printf("v->addr = %p v_id = %d\n",v->addr, v-p->vma);
   return v->addr;
 }
 
 
-extern int write_back(struct proc *p, struct mmap *v, uint64 src, uint off, uint n);
+//extern int write_back(struct proc *, struct inode*, uint64 src, uint off, uint n);
 uint64
 sys_munmap(void)
 {
@@ -560,7 +568,11 @@ sys_munmap(void)
   
   if(v->flags == MAP_SHARED){
     // write back
-    write_back(p, v, addr, v->offset+addr-v->addr, length);
+    begin_op();
+    ilock(v->ip);//acquiresleep(&v->ip->lock);
+    write_back(p, v->ip, addr, v->offset+addr-v->addr, length);
+    iunlock(v->ip);//releasesleep(&v->ip->lock);
+    end_op();
   }
 
   if(addr==v->addr){
@@ -569,6 +581,9 @@ sys_munmap(void)
   }
   v->len-=length;
   if(v->len==0) {
+    begin_op();
+    iput(v->ip);
+    end_op();
     memset(v,0,sizeof(struct mmap));
   }
   

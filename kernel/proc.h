@@ -81,11 +81,12 @@ struct trapframe {
 };
 
 struct mmap {
-  struct file *f;
+  struct inode *ip;
   uint64 addr;
   uint64 len;
   uint64 offset;
   int prot;
+  //int fprem;
   int flags;
   int used;
 };
